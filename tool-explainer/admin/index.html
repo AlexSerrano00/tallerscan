@@ -458,6 +458,13 @@
             🌐 Publicar ahora
           </button>
           <div id="publish-status" style="margin-top:12px;font-size:13px;text-align:center;line-height:1.6;"></div>
+          
+          <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);">
+            <strong style="color:var(--text);">🔍 Diagnóstico — para verificar que funciona:</strong><br>
+            Después de publicar, abre esta URL en tu celular para ver el diagnóstico:<br>
+            <span id="debug-url" style="color:var(--accent);word-break:break-all;"></span>
+            <button class="btn btn-ghost" style="margin-top:6px;font-size:11px;padding:4px 10px;" onclick="copyDebugUrl()">📋 Copiar</button>
+          </div>
         </div>
 
       </div>
@@ -495,13 +502,19 @@
       </div>
       <div class="form-group">
         <label class="form-label">Modelo 3D (.glb)</label>
-        <div class="file-upload" id="glb-drop">
-          <input type="file" accept=".glb,.gltf" onchange="handleGLBFile(this)">
+        <div style="background:rgba(200,240,61,0.06);border:1px solid rgba(200,240,61,0.2);border-radius:8px;padding:12px;margin-bottom:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;">📦 El modelo se sube automáticamente a GitHub al publicar</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+            Selecciona tu archivo .glb. Al presionar <strong style="color:var(--text);">"🌐 Publicar ahora"</strong>, se sube automáticamente a tu repositorio y quedará visible en el celular. Tamaño máximo: <strong style="color:var(--text);">25 MB</strong>.
+          </div>
+        </div>
+        <div class="file-upload" id="glb-drop" style="position:relative;">
+          <input type="file" accept=".glb,.gltf" onchange="handleGLBFile(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
           <div class="upload-icon">📦</div>
           <div class="upload-text">Arrastra tu archivo .glb aquí o haz clic para seleccionar</div>
-          <div class="upload-name" id="glb-name"></div>
         </div>
-        <div class="form-hint">Si no hay modelo, se mostrará un modelo 3D procedural. Tamaño máximo recomendado: 20MB.</div>
+        <div class="upload-name" id="glb-name" style="margin-top:6px;font-size:13px;color:var(--accent);"></div>
+        <div class="form-hint" style="margin-top:4px;">Si no tienes modelo .glb, se mostrará un modelo 3D automático.</div>
       </div>
       <div class="form-group">
         <label class="form-label">Texto que dirá el asistente (voz) *</label>
@@ -658,10 +671,17 @@ function toggleTokenVisibility() {
 }
 
 function buildDataJson() {
+  const user = localStorage.getItem('gh_user') || '';
+  const repo = localStorage.getItem('gh_repo') || '';
   return machines.map(m => {
     const { glbData, ...rest } = m;
-    return { ...rest, hasGlb: !!glbData };
-    // glbUrl se agrega automáticamente al publicar si tiene modelo
+    // Si tiene GLB local y ya se subió antes, mantener la glbUrl
+    // Si no tiene glbUrl pero tiene glbData, asignar URL de GitHub
+    let glbUrl = m.glbUrl || '';
+    if(!glbUrl && glbData && user && repo) {
+      glbUrl = `https://${user}.github.io/${repo}/tool-explainer/viewer/models/${m.id}.glb`;
+    }
+    return { ...rest, hasGlb: !!glbData, glbUrl };
   });
 }
 
@@ -765,6 +785,16 @@ async function publicarEnWeb() {
   }
 }
 
+function copyDebugUrl() {
+  const user = localStorage.getItem('gh_user') || '';
+  const repo = localStorage.getItem('gh_repo') || '';
+  if(!user||!repo||!machines.length) { toast('⚠️ Configura el repositorio y agrega máquinas primero'); return; }
+  const firstId = machines[0].id;
+  const url = `https://${user}.github.io/${repo}/tool-explainer/viewer/index.html?id=${firstId}&debug=1`;
+  document.getElementById('debug-url').textContent = url;
+  navigator.clipboard.writeText(url).then(()=>toast('📋 URL de diagnóstico copiada'));
+}
+
 function loadGHConfig() {
   const token = localStorage.getItem('gh_token') || '';
   const user  = localStorage.getItem('gh_user') || '';
@@ -772,7 +802,15 @@ function loadGHConfig() {
   if(token) { document.getElementById('gh-token').value = token; document.getElementById('token-ok').style.display='inline'; }
   if(user)  { document.getElementById('gh-user').value = user; }
   if(repo)  { document.getElementById('gh-repo').value = repo; }
-  if(user && repo) document.getElementById('repo-ok').style.display='inline';
+  if(user && repo) {
+    document.getElementById('repo-ok').style.display='inline';
+    // Actualizar URL de diagnóstico
+    if(machines.length) {
+      const firstId = machines[0].id;
+      const dbgEl = document.getElementById('debug-url');
+      if(dbgEl) dbgEl.textContent = `https://${user}.github.io/${repo}/tool-explainer/viewer/index.html?id=${firstId}&debug=1`;
+    }
+  }
 }
 
 function saveGlobalUrl() {
@@ -880,6 +918,7 @@ function openAddModal() {
   document.getElementById('f-baseurl').value = loc.startsWith('file://') ? '' : loc;
   const glbN = document.getElementById('glb-name');
   glbN.style.display = 'none'; glbN.textContent = '';
+  currentGLBData = null; currentGLBName = null;
   openModal('modal-machine');
 }
 
@@ -897,7 +936,8 @@ function editMachine(id) {
   document.getElementById('f-desc').value = m.desc;
   document.getElementById('f-baseurl').value = m.baseUrl || '';
   const glbN = document.getElementById('glb-name');
-  if(currentGLBData) { glbN.textContent = '✅ Modelo cargado'; glbN.style.display = 'block'; }
+  if(m.glbUrl) { glbN.textContent = '✅ Modelo subido a GitHub: ' + m.glbUrl.split('/').pop(); glbN.style.display = 'block'; glbN.style.color='var(--accent)'; }
+  else if(currentGLBData) { glbN.textContent = '✅ Modelo local — pendiente de publicar'; glbN.style.display = 'block'; glbN.style.color='var(--warn)'; }
   else { glbN.style.display = 'none'; }
   openModal('modal-machine');
 }
@@ -911,12 +951,13 @@ function saveMachine(e) {
   const color   = document.getElementById('f-color').value;
   const desc    = document.getElementById('f-desc').value.trim();
   const baseUrl = document.getElementById('f-baseurl').value.trim();
+  const glbUrl  = editingId ? (machines.find(m=>m.id===editingId)?.glbUrl || '') : '';
 
   if(isEditing) {
     const idx = machines.findIndex(m=>m.id===editingId);
-    if(idx >= 0) machines[idx] = { ...machines[idx], name, cat, icon, color, desc, baseUrl, glbData: currentGLBData };
+    if(idx >= 0) machines[idx] = { ...machines[idx], name, cat, icon, color, desc, baseUrl, glbUrl, glbData: currentGLBData !== null ? currentGLBData : machines[idx].glbData };
   } else {
-    machines.push({ id: uid(), name, cat, icon, color, desc, baseUrl, glbData: currentGLBData, created: Date.now() });
+    machines.push({ id: uid(), name, cat, icon, color, desc, baseUrl, glbUrl: '', glbData: currentGLBData, created: Date.now() });
   }
 
   storageSave(machines);
@@ -945,33 +986,24 @@ function handleGLBFile(input) {
   const n = document.getElementById('glb-name');
   const sizeMB = file.size / 1024 / 1024;
 
-  // Límite: 50MB para IndexedDB local
-  if(sizeMB > 50) {
-    n.textContent = '❌ Archivo demasiado grande (' + sizeMB.toFixed(1) + ' MB). Máximo 50 MB.';
-    n.style.display = 'block';
-    n.style.color = 'var(--danger)';
-    input.value = '';
-    toast('❌ El archivo .glb es demasiado grande. Máximo 50 MB.');
-    return;
+  if(sizeMB > 25) {
+    n.textContent = '❌ Archivo muy grande (' + sizeMB.toFixed(1) + ' MB). Máximo 25 MB para GitHub.';
+    n.style.color = 'var(--danger)'; n.style.display = 'block';
+    input.value = ''; toast('❌ Máximo 25 MB'); return;
   }
 
-  n.textContent = '⏳ Cargando modelo... (' + sizeMB.toFixed(1) + ' MB)';
-  n.style.display = 'block';
-  n.style.color = 'var(--muted)';
+  n.textContent = '⏳ Cargando... (' + sizeMB.toFixed(1) + ' MB)';
+  n.style.color = 'var(--muted)'; n.style.display = 'block';
 
   const reader = new FileReader();
   reader.onload = ev => {
     currentGLBData = ev.target.result;
     currentGLBName = file.name;
-    n.textContent = '✅ ' + file.name + ' (' + sizeMB.toFixed(1) + ' MB)';
+    n.textContent = '✅ ' + file.name + ' (' + sizeMB.toFixed(1) + ' MB) — se subirá al publicar';
     n.style.color = 'var(--accent)';
-    toast('📦 Modelo .glb listo');
+    toast('📦 Modelo listo — presiona Publicar ahora para subirlo');
   };
-  reader.onerror = () => {
-    n.textContent = '❌ Error al leer el archivo. Intenta de nuevo.';
-    n.style.color = 'var(--danger)';
-    toast('❌ Error al cargar el archivo .glb');
-  };
+  reader.onerror = () => { n.textContent = '❌ Error al leer'; n.style.color='var(--danger)'; };
   reader.readAsDataURL(file);
 }
 
