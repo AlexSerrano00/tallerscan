@@ -1,0 +1,14 @@
+[
+  {
+    "id": "mnnteswrunxo",
+    "name": "Muñeco vudú",
+    "cat": "Brujeria",
+    "icon": "🧙",
+    "color": "#c8f03d",
+    "desc": "Esto es un muñeco vudú",
+    "baseUrl": "https://AlexSerrano00.github.io/tallerscan/tool-explainer/viewer/index.html",
+    "created": 1775517725403,
+    "hasGlb": true,
+    "glbUrl": "https://AlexSerrano00.github.io/tallerscan/tool-explainer/viewer/models/mnnteswrunxo.glb"
+  }
+]
