@@ -687,7 +687,6 @@ async function loadMachine(machine){
 
   // Mostrar botón AR solo si hay un modelo con URL (no procedural)
   const arBtn = document.getElementById('ar-fab');
-  const mv = document.getElementById('main-mv');
   if(arBtn && mv && mv.src && (machine.glbUrl || machine.glbData)) {
     arBtn.style.display = 'block';
   } else if(arBtn) {
