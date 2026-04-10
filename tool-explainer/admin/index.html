@@ -408,7 +408,7 @@
             Una vez publicado, pega aquí la URL de tu <code style="background:var(--bg);padding:2px 6px;border-radius:4px;">viewer/index.html</code> público. Todos los QR se actualizarán automáticamente.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <input class="form-input" id="global-base-url" placeholder="https://tuusuario.github.io/tallerscan/viewer/index.html" style="flex:1;min-width:200px;">
+            <input class="form-input" id="global-base-url" placeholder="https://tuusuario.github.io/tallerscan/viewer/index.html" style="flex:1;min-width:200px;" oninput="autoSaveField('tallerscan_global_url',this.value)">
             <button class="btn btn-accent" onclick="saveGlobalUrl()">💾 Guardar URL</button>
           </div>
           <div id="global-url-status" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
@@ -431,7 +431,7 @@
               → desplázate al final → haz clic en <strong style="color:var(--text);">"Generar token"</strong> → copia el token que aparece (empieza con <code style="background:var(--surface);padding:2px 4px;border-radius:3px;">ghp_</code>) y pégalo aquí:
             </p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <input class="form-input" id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;">
+              <input class="form-input" id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1;min-width:200px;font-family:monospace;" oninput="autoSaveField('gh_token',this.value)">
               <button class="btn btn-ghost" onclick="saveGHToken()">💾 Guardar</button>
               <button class="btn btn-ghost" onclick="toggleTokenVisibility()">👁️</button>
             </div>
@@ -443,11 +443,11 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <div>
                 <label class="form-label">Tu usuario de GitHub</label>
-                <input class="form-input" id="gh-user" placeholder="Ej: AlexSerrano00">
+                <input class="form-input" id="gh-user" placeholder="Ej: AlexSerrano00" oninput="autoSaveField('gh_user',this.value)">
               </div>
               <div>
                 <label class="form-label">Nombre del repositorio</label>
-                <input class="form-input" id="gh-repo" placeholder="Ej: tallerscan">
+                <input class="form-input" id="gh-repo" placeholder="Ej: tallerscan" oninput="autoSaveField('gh_repo',this.value)">
               </div>
             </div>
             <button class="btn btn-ghost" style="margin-top:8px;" onclick="saveGHRepo()">💾 Guardar repositorio</button>
@@ -799,18 +799,31 @@ function loadGHConfig() {
   const token = localStorage.getItem('gh_token') || '';
   const user  = localStorage.getItem('gh_user') || '';
   const repo  = localStorage.getItem('gh_repo') || '';
-  if(token) { document.getElementById('gh-token').value = token; document.getElementById('token-ok').style.display='inline'; }
-  if(user)  { document.getElementById('gh-user').value = user; }
-  if(repo)  { document.getElementById('gh-repo').value = repo; }
+  const globalUrl = localStorage.getItem('tallerscan_global_url') || '';
+
+  const tokenEl = document.getElementById('gh-token');
+  const userEl  = document.getElementById('gh-user');
+  const repoEl  = document.getElementById('gh-repo');
+  const urlEl   = document.getElementById('global-base-url');
+
+  if(tokenEl && token) { tokenEl.value = token; document.getElementById('token-ok').style.display='inline'; }
+  if(userEl  && user)  { userEl.value  = user; }
+  if(repoEl  && repo)  { repoEl.value  = repo; }
+  if(urlEl   && globalUrl) { urlEl.value = globalUrl; }
+
   if(user && repo) {
-    document.getElementById('repo-ok').style.display='inline';
-    // Actualizar URL de diagnóstico
+    const okEl = document.getElementById('repo-ok');
+    if(okEl) okEl.style.display='inline';
     if(machines.length) {
-      const firstId = machines[0].id;
       const dbgEl = document.getElementById('debug-url');
-      if(dbgEl) dbgEl.textContent = `https://${user}.github.io/${repo}/tool-explainer/viewer/index.html?id=${firstId}&debug=1`;
+      if(dbgEl) dbgEl.textContent = `https://${user}.github.io/${repo}/tool-explainer/viewer/index.html?id=${machines[0].id}`;
     }
   }
+}
+
+// Auto-guardar campos al escribir (para que no se borren al refrescar)
+function autoSaveField(key, value) {
+  localStorage.setItem(key, value);
 }
 
 function saveGlobalUrl() {
@@ -837,6 +850,11 @@ function loadGlobalUrl() {
 
 let machines = storageLoad();
 storageLoadGlbs(); // cargar GLBs desde IndexedDB
+// Cargar config guardada al iniciar
+window.addEventListener('DOMContentLoaded', () => {
+  loadGHConfig();
+  loadGlobalUrl();
+});
 let editingId = null;
 let currentGLBData = null;
 let currentGLBName = null;

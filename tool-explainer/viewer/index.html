@@ -171,13 +171,10 @@
     50%{box-shadow:0 0 0 8px rgba(200,240,61,0);}
   }
 
-  /* Personaje 3D */
+  /* Personaje */
   #char-wrap {
     position:absolute; bottom:0; right:0; z-index:10;
-    width:120px; height:200px; pointer-events:none;
-  }
-  #char-wrap model-viewer {
-    pointer-events:none;
+    width:140px; height:240px; pointer-events:none;
   }
 
   /* Botón AR flotante */
@@ -222,19 +219,9 @@
     <div id="tool-title-float"></div>
     <div id="tool-cat-float"></div>
     <div id="model-fallback-tag">Modelo procedural</div>
-    <!-- Personaje 3D animado (GLB gratuito de ReadyPlayerMe/Mixamo) -->
+    <!-- Personaje 3D animado -->
   <div id="char-wrap">
-    <model-viewer
-      id="char-mv"
-      src="https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb"
-      alt="Asistente SENA"
-      autoplay
-      animation-name="idle"
-      camera-controls="false"
-      disable-zoom
-      disable-pan
-      style="width:120px;height:200px;background:transparent;--poster-color:transparent;"
-    ></model-viewer>
+    <canvas id="char-canvas" width="140" height="240" style="width:140px;height:240px;"></canvas>
   </div>
 
   <!-- Botón AR -->
@@ -426,38 +413,130 @@ function loadGLBLocal(source){
   }));
 }
 
-// ─── PERSONAJE 3D (model-viewer animado) ────────────────────────────
-let isTalking = false;
-let mouthInterval = null;
+// ─── PERSONAJE ANIME (canvas 2D) ────────────────────────────────────
+let charCtx, isTalking=false, mouthState=0, blinkCounter=0, charFrame=0, mouthInterval=null;
 
 function initChar() {
-  const mv = document.getElementById('char-mv');
-  if(mv) {
-    mv.addEventListener('load', () => {
-      const anims = mv.availableAnimations;
-      if(anims && anims.length > 0) {
-        const idle = anims.find(a => /idle|stand|breath/i.test(a)) || anims[0];
-        mv.animationName = idle;
-        mv.play({repetitions: Infinity});
-      }
-    });
-  }
+  const c = document.getElementById('char-canvas');
+  if(!c) return;
+  charCtx = c.getContext('2d');
+  drawChar();
+  setInterval(()=>{ blinkCounter++; charFrame++; drawChar(); }, 100);
 }
 
 function setTalkingAnim(talking) {
   isTalking = talking;
-  const mv = document.getElementById('char-mv');
-  if(!mv) return;
-  try {
-    const anims = mv.availableAnimations || [];
-    if(talking) {
-      const a = anims.find(x => /talk|speak|wave|gesture/i.test(x)) || anims[1] || anims[0];
-      if(a) { mv.animationName = a; mv.play({repetitions: Infinity}); }
+}
+
+function drawChar() {
+  if(!charCtx) return;
+  const ctx=charCtx, W=140, H=240;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='rgba(200,240,61,0.10)';
+  ctx.beginPath();ctx.ellipse(70,232,26,7,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#1a2535';
+  ctx.beginPath();ctx.roundRect(43,168,13,44,4);ctx.fill();
+  ctx.beginPath();ctx.roundRect(63,168,13,44,4);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fillRect(45,171,4,36);ctx.fillRect(65,171,4,36);
+  ctx.fillStyle='#111';
+  ctx.beginPath();ctx.roundRect(37,207,22,11,[2,6,6,2]);ctx.fill();
+  ctx.beginPath();ctx.roundRect(60,207,22,11,[2,6,6,2]);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.beginPath();ctx.ellipse(47,210,7,2.5,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(70,210,7,2.5,0,0,Math.PI*2);ctx.fill();
+  const bodyGrad=ctx.createLinearGradient(30,105,105,168);
+  bodyGrad.addColorStop(0,'#4ec900');bodyGrad.addColorStop(1,'#277000');
+  ctx.fillStyle=bodyGrad;ctx.beginPath();ctx.roundRect(32,105,55,64,9);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.10)';ctx.beginPath();ctx.roundRect(36,109,24,18,5);ctx.fill();
+  ctx.save();ctx.translate(59,133);
+  ctx.fillStyle='#000';ctx.beginPath();ctx.arc(0,-18,4.5,0,Math.PI*2);ctx.fill();
+  ctx.font='bold 9px Arial Black,Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('SENA',0,-7);
+  ctx.strokeStyle='#000';ctx.lineWidth=2.8;ctx.lineCap='square';ctx.lineJoin='miter';
+  ctx.beginPath();ctx.moveTo(-1,1);ctx.lineTo(-14,1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(1,1);ctx.lineTo(14,1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,1);ctx.lineTo(-10,15);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,1);ctx.lineTo(10,15);ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='#FFD100';ctx.fillRect(32,163,55,5);
+  ctx.fillStyle='#39A900';
+  ctx.beginPath();ctx.roundRect(16,111,17,50,7);ctx.fill();
+  ctx.beginPath();ctx.roundRect(86,111,17,50,7);ctx.fill();
+  ctx.fillStyle='#FFD100';ctx.fillRect(16,151,17,4);ctx.fillRect(86,151,17,4);
+  const skin='#f5c090';
+  ctx.fillStyle=skin;
+  ctx.beginPath();ctx.arc(24,165,9,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(95,165,9,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.28)';
+  ctx.beginPath();ctx.arc(21,162,3.5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(92,162,3.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=skin;ctx.beginPath();ctx.roundRect(61,84,17,24,4);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.12)';ctx.beginPath();ctx.roundRect(27,20,86,76,18);ctx.fill();
+  const faceG=ctx.createRadialGradient(70,54,8,70,54,46);
+  faceG.addColorStop(0,'#fde8c8');faceG.addColorStop(1,'#f5c090');
+  ctx.fillStyle=faceG;ctx.beginPath();ctx.roundRect(28,18,84,76,18);ctx.fill();
+  ctx.fillStyle='#170c00';ctx.beginPath();ctx.roundRect(26,14,88,40,[18,18,0,0]);ctx.fill();
+  ctx.beginPath();ctx.moveTo(28,38);ctx.lineTo(18,68);ctx.lineTo(30,54);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(112,38);ctx.lineTo(122,68);ctx.lineTo(110,54);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#220f00';
+  ctx.beginPath();ctx.moveTo(40,22);ctx.lineTo(46,46);ctx.lineTo(55,28);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(57,18);ctx.lineTo(61,44);ctx.lineTo(72,24);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(74,18);ctx.lineTo(80,42);ctx.lineTo(90,26);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.ellipse(62,24,16,5,-0.3,0,Math.PI*2);ctx.fill();
+  const blink=blinkCounter%40<3;
+  if(blink){
+    ctx.strokeStyle='#1a0a00';ctx.lineWidth=2.5;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(52,61,9,Math.PI+0.25,-0.25);ctx.stroke();
+    ctx.beginPath();ctx.arc(88,61,9,Math.PI+0.25,-0.25);ctx.stroke();
+  } else {
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.ellipse(52,62,11,13,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(88,62,11,13,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#1558a0';
+    ctx.beginPath();ctx.ellipse(52,63,8,10,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(88,63,8,10,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#050510';
+    ctx.beginPath();ctx.ellipse(52,64,5,6,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(88,64,5,6,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.ellipse(47,58,3.5,3.5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(83,58,3.5,3.5,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#1a0f00';
+    ctx.save();ctx.translate(41,46);ctx.rotate(-0.08);ctx.beginPath();ctx.roundRect(0,0,22,4,2);ctx.fill();ctx.restore();
+    ctx.save();ctx.translate(77,46);ctx.rotate(0.08);ctx.beginPath();ctx.roundRect(0,0,22,4,2);ctx.fill();ctx.restore();
+  }
+  ctx.strokeStyle='#c09070';ctx.lineWidth=1.5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(67,74);ctx.lineTo(72,74);ctx.stroke();
+  ctx.strokeStyle='#c06040';ctx.lineWidth=2.5;ctx.lineCap='round';
+  if(isTalking){
+    const m=mouthState%4;
+    if(m===0||m===2){
+      ctx.fillStyle='#7a1010';ctx.beginPath();ctx.ellipse(70,84,9,7,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#f07070';ctx.beginPath();ctx.ellipse(70,83,6,4,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.fillRect(64,80,5,4);ctx.fillRect(71,80,5,4);
     } else {
-      const a = anims.find(x => /idle|stand|breath/i.test(x)) || anims[0];
-      if(a) { mv.animationName = a; mv.play({repetitions: Infinity}); }
+      ctx.beginPath();ctx.arc(70,80,9,0.15,Math.PI-0.15);ctx.stroke();
+      ctx.fillStyle='rgba(255,90,90,0.22)';
+      ctx.beginPath();ctx.ellipse(42,74,9,5,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(98,74,9,5,0,0,Math.PI*2);ctx.fill();
     }
-  } catch(e) {}
+  } else {
+    ctx.beginPath();ctx.arc(70,81,7,0.18,Math.PI-0.18);ctx.stroke();
+    ctx.fillStyle='rgba(255,100,100,0.16)';
+    ctx.beginPath();ctx.ellipse(42,74,9,5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(98,74,9,5,0,0,Math.PI*2);ctx.fill();
+  }
+  ctx.strokeStyle='#c8f03d';ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(70,32,34,Math.PI+0.38,-0.38);ctx.stroke();
+  ctx.fillStyle='#c8f03d';ctx.beginPath();ctx.arc(70,10,5.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.65)';ctx.beginPath();ctx.arc(68,8,2,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#c8f03d';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(70,14);ctx.lineTo(70,5);ctx.stroke();
+  if(isTalking){
+    ctx.fillStyle=`rgba(200,240,61,${0.25+0.65*Math.abs(Math.sin(charFrame*0.25))})`;
+    ctx.beginPath();ctx.arc(70,5,9,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#c8f03d';ctx.beginPath();ctx.arc(70,5,5,0,Math.PI*2);ctx.fill();
+  }
 }
 
 // ─── AR CON CÁMARA ───────────────────────────────────────────────────
@@ -494,8 +573,8 @@ function doSpeak(text){
   const voices=window.speechSynthesis.getVoices();
   const esVoice=voices.find(v=>v.lang==='es-CO')||voices.find(v=>v.lang==='es-US')||voices.find(v=>v.lang.startsWith('es')&&v.name.toLowerCase().includes('google'))||voices.find(v=>v.lang.startsWith('es'));
   if(esVoice)utterance.voice=esVoice;
-  utterance.onstart=()=>{setTalkingAnim(true);animateProgress(text.length*65);};
-  utterance.onend=()=>{setTalkingAnim(false);document.getElementById('typing-cursor').style.display='none';document.getElementById('voice-progress').style.width='100%';};
+  utterance.onstart=()=>{setTalkingAnim(true);mouthInterval=setInterval(()=>{mouthState++;},150);animateProgress(text.length*65);};
+  utterance.onend=()=>{setTalkingAnim(false);if(mouthInterval){clearInterval(mouthInterval);mouthInterval=null;}document.getElementById('typing-cursor').style.display='none';document.getElementById('voice-progress').style.width='100%';};
   utterance.onerror=(e)=>{setTalkingAnim(false);if(e.error==='not-allowed'||e.error==='interrupted'){document.getElementById('repeat-btn').style.animation='pulse 1s infinite';}};
   window.speechSynthesis.speak(utterance);
   typeText(text);
