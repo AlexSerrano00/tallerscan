@@ -171,10 +171,35 @@
     50%{box-shadow:0 0 0 8px rgba(200,240,61,0);}
   }
 
-  /* Personaje */
+  /* Personaje anime mejorado */
   #char-wrap {
     position:absolute; bottom:0; right:0; z-index:10;
-    width:140px; height:240px; pointer-events:none;
+    width:180px; height:320px; pointer-events:none;
+    filter: drop-shadow(0 0 18px rgba(200,240,61,0.25));
+  }
+  #char-wrap.talking {
+    filter: drop-shadow(0 0 28px rgba(200,240,61,0.55));
+  }
+
+  /* Overlay tap-to-speak (móvil) */
+  #tap-overlay {
+    position:absolute; inset:0; z-index:60;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px;
+    background:rgba(8,8,15,0.82); backdrop-filter:blur(4px);
+    cursor:pointer;
+  }
+  #tap-overlay .tap-icon {
+    font-size:52px; animation:tapBounce 1.2s infinite;
+  }
+  #tap-overlay p {
+    color:var(--accent); font-family:var(--font-head);
+    font-size:18px; font-weight:800; letter-spacing:1px;
+    text-align:center; padding:0 32px;
+  }
+  @keyframes tapBounce {
+    0%,100%{transform:scale(1) translateY(0);}
+    50%{transform:scale(1.15) translateY(-6px);}
   }
 
   /* Botón AR flotante */
@@ -219,9 +244,15 @@
     <div id="tool-title-float"></div>
     <div id="tool-cat-float"></div>
     <div id="model-fallback-tag">Modelo procedural</div>
-    <!-- Personaje 3D animado -->
+    <!-- Personaje anime mejorado -->
   <div id="char-wrap">
-    <canvas id="char-canvas" width="140" height="240" style="width:140px;height:240px;"></canvas>
+    <canvas id="char-canvas" width="180" height="320" style="width:180px;height:320px;"></canvas>
+  </div>
+
+  <!-- Overlay tap-to-speak para móvil -->
+  <div id="tap-overlay" style="display:none;" onclick="unlockAndSpeak()">
+    <div class="tap-icon">👆</div>
+    <p>Toca para escuchar la explicación</p>
   </div>
 
   <!-- Botón AR -->
@@ -413,130 +444,229 @@ function loadGLBLocal(source){
   }));
 }
 
-// ─── PERSONAJE ANIME (canvas 2D) ────────────────────────────────────
+// ─── PERSONAJE ANIME MEJORADO (canvas 2D) ─────────────────────────────
 let charCtx, isTalking=false, mouthState=0, blinkCounter=0, charFrame=0, mouthInterval=null;
+// Animación de cuerpo/brazo
+let bodyBob=0, armSwing=0, eyeGlow=0;
 
 function initChar() {
   const c = document.getElementById('char-canvas');
   if(!c) return;
   charCtx = c.getContext('2d');
   drawChar();
-  setInterval(()=>{ blinkCounter++; charFrame++; drawChar(); }, 100);
+  setInterval(()=>{ blinkCounter++; charFrame++; bodyBob=Math.sin(charFrame*0.18)*3; armSwing=Math.sin(charFrame*0.22)*8; eyeGlow=0.5+0.5*Math.sin(charFrame*0.3); drawChar(); }, 80);
 }
 
 function setTalkingAnim(talking) {
   isTalking = talking;
+  const wrap = document.getElementById('char-wrap');
+  if(wrap) wrap.classList.toggle('talking', talking);
 }
 
 function drawChar() {
   if(!charCtx) return;
-  const ctx=charCtx, W=140, H=240;
+  const ctx=charCtx, W=180, H=320;
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='rgba(200,240,61,0.10)';
-  ctx.beginPath();ctx.ellipse(70,232,26,7,0,0,Math.PI*2);ctx.fill();
+
+  const cx=90, bob=bodyBob;
+
+  // Sombra suelo
+  ctx.fillStyle='rgba(200,240,61,0.12)';
+  ctx.beginPath();ctx.ellipse(cx,H-8,30,7,0,0,Math.PI*2);ctx.fill();
+
+  // ── PIERNAS ──
+  const legY=220+bob;
+  // Pierna izquierda
   ctx.fillStyle='#1a2535';
-  ctx.beginPath();ctx.roundRect(43,168,13,44,4);ctx.fill();
-  ctx.beginPath();ctx.roundRect(63,168,13,44,4);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fillRect(45,171,4,36);ctx.fillRect(65,171,4,36);
-  ctx.fillStyle='#111';
-  ctx.beginPath();ctx.roundRect(37,207,22,11,[2,6,6,2]);ctx.fill();
-  ctx.beginPath();ctx.roundRect(60,207,22,11,[2,6,6,2]);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.18)';
-  ctx.beginPath();ctx.ellipse(47,210,7,2.5,0,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.ellipse(70,210,7,2.5,0,0,Math.PI*2);ctx.fill();
-  const bodyGrad=ctx.createLinearGradient(30,105,105,168);
-  bodyGrad.addColorStop(0,'#4ec900');bodyGrad.addColorStop(1,'#277000');
-  ctx.fillStyle=bodyGrad;ctx.beginPath();ctx.roundRect(32,105,55,64,9);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.10)';ctx.beginPath();ctx.roundRect(36,109,24,18,5);ctx.fill();
-  ctx.save();ctx.translate(59,133);
-  ctx.fillStyle='#000';ctx.beginPath();ctx.arc(0,-18,4.5,0,Math.PI*2);ctx.fill();
-  ctx.font='bold 9px Arial Black,Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('SENA',0,-7);
-  ctx.strokeStyle='#000';ctx.lineWidth=2.8;ctx.lineCap='square';ctx.lineJoin='miter';
-  ctx.beginPath();ctx.moveTo(-1,1);ctx.lineTo(-14,1);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(1,1);ctx.lineTo(14,1);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(0,1);ctx.lineTo(-10,15);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(0,1);ctx.lineTo(10,15);ctx.stroke();
-  ctx.restore();
-  ctx.fillStyle='#FFD100';ctx.fillRect(32,163,55,5);
-  ctx.fillStyle='#39A900';
-  ctx.beginPath();ctx.roundRect(16,111,17,50,7);ctx.fill();
-  ctx.beginPath();ctx.roundRect(86,111,17,50,7);ctx.fill();
-  ctx.fillStyle='#FFD100';ctx.fillRect(16,151,17,4);ctx.fillRect(86,151,17,4);
+  ctx.beginPath();ctx.roundRect(cx-28,legY,22,60,6);ctx.fill();
+  // Pierna derecha
+  ctx.beginPath();ctx.roundRect(cx+6,legY,22,60,6);ctx.fill();
+  // Reflejos piernas
+  ctx.fillStyle='rgba(255,255,255,0.07)';
+  ctx.fillRect(cx-26,legY+3,6,50);
+  ctx.fillRect(cx+8,legY+3,6,50);
+  // Zapatos
+  ctx.fillStyle='#0d0d0d';
+  ctx.beginPath();ctx.roundRect(cx-32,legY+54,28,16,[4,8,8,4]);ctx.fill();
+  ctx.beginPath();ctx.roundRect(cx+4,legY+54,28,16,[4,8,8,4]);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.15)';
+  ctx.beginPath();ctx.ellipse(cx-18,legY+57,9,3,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+18,legY+57,9,3,0,0,Math.PI*2);ctx.fill();
+
+  // ── CUERPO ──
+  const bodyY=140+bob;
+  const bodyGrad=ctx.createLinearGradient(cx-36,bodyY,cx+36,bodyY+80);
+  bodyGrad.addColorStop(0,'#5dd400');
+  bodyGrad.addColorStop(0.5,'#3ea800');
+  bodyGrad.addColorStop(1,'#217000');
+  ctx.fillStyle=bodyGrad;
+  ctx.beginPath();ctx.roundRect(cx-36,bodyY,72,82,12);ctx.fill();
+  // Logo SENA en pecho
+  ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.beginPath();ctx.roundRect(cx-20,bodyY+14,40,24,6);ctx.fill();
+  ctx.fillStyle='#FFD100';
+  ctx.font='bold 10px Arial Black,Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('SENA',cx,bodyY+26);
+  // Franja amarilla cinturón
+  ctx.fillStyle='#FFD100';ctx.fillRect(cx-36,bodyY+76,72,6);
+  // Brillo cuerpo
+  ctx.fillStyle='rgba(255,255,255,0.09)';
+  ctx.beginPath();ctx.roundRect(cx-28,bodyY+8,32,22,5);ctx.fill();
+
+  // ── BRAZOS ──
   const skin='#f5c090';
+  // Brazo izquierdo (oscila al hablar)
+  const armLAngle = isTalking ? armSwing*0.04 : 0.05;
+  ctx.save();
+  ctx.translate(cx-36,bodyY+12);
+  ctx.rotate(armLAngle);
+  ctx.fillStyle='#3ea800';
+  ctx.beginPath();ctx.roundRect(-18,0,18,52,8);ctx.fill();
+  ctx.fillStyle='#FFD100';ctx.fillRect(-18,42,18,5);
   ctx.fillStyle=skin;
-  ctx.beginPath();ctx.arc(24,165,9,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(95,165,9,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.28)';
-  ctx.beginPath();ctx.arc(21,162,3.5,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.arc(92,162,3.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=skin;ctx.beginPath();ctx.roundRect(61,84,17,24,4);ctx.fill();
-  ctx.fillStyle='rgba(0,0,0,0.12)';ctx.beginPath();ctx.roundRect(27,20,86,76,18);ctx.fill();
-  const faceG=ctx.createRadialGradient(70,54,8,70,54,46);
-  faceG.addColorStop(0,'#fde8c8');faceG.addColorStop(1,'#f5c090');
-  ctx.fillStyle=faceG;ctx.beginPath();ctx.roundRect(28,18,84,76,18);ctx.fill();
-  ctx.fillStyle='#170c00';ctx.beginPath();ctx.roundRect(26,14,88,40,[18,18,0,0]);ctx.fill();
-  ctx.beginPath();ctx.moveTo(28,38);ctx.lineTo(18,68);ctx.lineTo(30,54);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.moveTo(112,38);ctx.lineTo(122,68);ctx.lineTo(110,54);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#220f00';
-  ctx.beginPath();ctx.moveTo(40,22);ctx.lineTo(46,46);ctx.lineTo(55,28);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.moveTo(57,18);ctx.lineTo(61,44);ctx.lineTo(72,24);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.moveTo(74,18);ctx.lineTo(80,42);ctx.lineTo(90,26);ctx.closePath();ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.ellipse(62,24,16,5,-0.3,0,Math.PI*2);ctx.fill();
-  const blink=blinkCounter%40<3;
+  ctx.beginPath();ctx.ellipse(-9,58,10,12,0,0,Math.PI*2);ctx.fill();
+  // Reflejo mano
+  ctx.fillStyle='rgba(255,255,255,0.22)';
+  ctx.beginPath();ctx.ellipse(-13,53,4,4,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // Brazo derecho (oscila opuesto)
+  const armRAngle = isTalking ? -armSwing*0.04 : -0.05;
+  ctx.save();
+  ctx.translate(cx+36,bodyY+12);
+  ctx.rotate(armRAngle);
+  ctx.fillStyle='#3ea800';
+  ctx.beginPath();ctx.roundRect(0,0,18,52,8);ctx.fill();
+  ctx.fillStyle='#FFD100';ctx.fillRect(0,42,18,5);
+  ctx.fillStyle=skin;
+  ctx.beginPath();ctx.ellipse(9,58,10,12,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.22)';
+  ctx.beginPath();ctx.ellipse(13,53,4,4,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // ── CUELLO ──
+  ctx.fillStyle=skin;
+  ctx.beginPath();ctx.roundRect(cx-10,bodyY-16,20,20,4);ctx.fill();
+
+  // ── CABEZA ──
+  const headY=bodyY-88+bob*0.5;
+  // Sombra cabeza
+  ctx.fillStyle='rgba(0,0,0,0.18)';
+  ctx.beginPath();ctx.roundRect(cx-42,headY+4,84,82,20);ctx.fill();
+  // Cara
+  const faceG=ctx.createRadialGradient(cx,headY+38,6,cx,headY+38,48);
+  faceG.addColorStop(0,'#fde8c8');
+  faceG.addColorStop(1,'#f0b87a');
+  ctx.fillStyle=faceG;
+  ctx.beginPath();ctx.roundRect(cx-40,headY,80,80,20);ctx.fill();
+
+  // Cabello anime oscuro
+  ctx.fillStyle='#150900';
+  // Base cabello
+  ctx.beginPath();ctx.roundRect(cx-42,headY-4,84,44,[20,20,0,0]);ctx.fill();
+  // Mechones laterales
+  ctx.beginPath();ctx.moveTo(cx-42,headY+28);ctx.lineTo(cx-54,headY+62);ctx.lineTo(cx-36,headY+48);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+42,headY+28);ctx.lineTo(cx+54,headY+62);ctx.lineTo(cx+36,headY+48);ctx.closePath();ctx.fill();
+  // Mechones frontales
+  ctx.fillStyle='#1e0d00';
+  ctx.beginPath();ctx.moveTo(cx-30,headY);ctx.lineTo(cx-22,headY+28);ctx.lineTo(cx-8,headY+6);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx-8,headY-2);ctx.lineTo(cx,headY+22);ctx.lineTo(cx+14,headY+2);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+14,headY-2);ctx.lineTo(cx+22,headY+24);ctx.lineTo(cx+36,headY+4);ctx.closePath();ctx.fill();
+  // Brillo cabello
+  ctx.fillStyle='rgba(255,255,255,0.13)';
+  ctx.beginPath();ctx.ellipse(cx-8,headY+8,20,6,-0.3,0,Math.PI*2);ctx.fill();
+
+  // ── OJOS ANIME ──
+  const eyeY=headY+42;
+  const blink=blinkCounter%35<2;
   if(blink){
-    ctx.strokeStyle='#1a0a00';ctx.lineWidth=2.5;ctx.lineCap='round';
-    ctx.beginPath();ctx.arc(52,61,9,Math.PI+0.25,-0.25);ctx.stroke();
-    ctx.beginPath();ctx.arc(88,61,9,Math.PI+0.25,-0.25);ctx.stroke();
+    ctx.strokeStyle='#2a1200';ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx-16,eyeY,10,Math.PI+0.3,-0.3);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx+16,eyeY,10,Math.PI+0.3,-0.3);ctx.stroke();
   } else {
+    // Blanco del ojo
     ctx.fillStyle='#fff';
-    ctx.beginPath();ctx.ellipse(52,62,11,13,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(88,62,11,13,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#1558a0';
-    ctx.beginPath();ctx.ellipse(52,63,8,10,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(88,63,8,10,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#050510';
-    ctx.beginPath();ctx.ellipse(52,64,5,6,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(88,64,5,6,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx-16,eyeY,12,14,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+16,eyeY,12,14,0,0,Math.PI*2);ctx.fill();
+    // Iris - color anime azul/verde brillante
+    const irisColor = isTalking ? '#00c8a0' : '#1570c8';
+    ctx.fillStyle=irisColor;
+    ctx.beginPath();ctx.ellipse(cx-16,eyeY+1,9,11,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+16,eyeY+1,9,11,0,0,Math.PI*2);ctx.fill();
+    // Pupila
+    ctx.fillStyle='#040414';
+    ctx.beginPath();ctx.ellipse(cx-16,eyeY+2,5,7,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+16,eyeY+2,5,7,0,0,Math.PI*2);ctx.fill();
+    // Brillos ojos (estilo anime: 2 brillos)
     ctx.fillStyle='#fff';
-    ctx.beginPath();ctx.ellipse(47,58,3.5,3.5,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(83,58,3.5,3.5,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#1a0f00';
-    ctx.save();ctx.translate(41,46);ctx.rotate(-0.08);ctx.beginPath();ctx.roundRect(0,0,22,4,2);ctx.fill();ctx.restore();
-    ctx.save();ctx.translate(77,46);ctx.rotate(0.08);ctx.beginPath();ctx.roundRect(0,0,22,4,2);ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.ellipse(cx-20,eyeY-3,3.5,3.5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+12,eyeY-3,3.5,3.5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx-13,eyeY+4,1.5,1.5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+19,eyeY+4,1.5,1.5,0,0,Math.PI*2);ctx.fill();
+    // Delineado superior
+    ctx.strokeStyle='#1a0900';ctx.lineWidth=2.5;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx-16,eyeY,12,Math.PI+0.1,-0.1);ctx.stroke();
+    ctx.beginPath();ctx.arc(cx+16,eyeY,12,Math.PI+0.1,-0.1);ctx.stroke();
+    // Cejas anime
+    ctx.fillStyle='#1a0900';
+    ctx.save();ctx.translate(cx-28,eyeY-20);ctx.rotate(-0.1);ctx.beginPath();ctx.roundRect(0,0,24,5,3);ctx.fill();ctx.restore();
+    ctx.save();ctx.translate(cx+4,eyeY-20);ctx.rotate(0.1);ctx.beginPath();ctx.roundRect(0,0,24,5,3);ctx.fill();ctx.restore();
   }
-  ctx.strokeStyle='#c09070';ctx.lineWidth=1.5;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(67,74);ctx.lineTo(72,74);ctx.stroke();
-  ctx.strokeStyle='#c06040';ctx.lineWidth=2.5;ctx.lineCap='round';
+
+  // Nariz
+  ctx.strokeStyle='#c08060';ctx.lineWidth=1.8;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx-3,eyeY+16);ctx.lineTo(cx+3,eyeY+16);ctx.stroke();
+
+  // Boca anime
+  ctx.strokeStyle='#b05030';ctx.lineWidth=2.8;ctx.lineCap='round';
   if(isTalking){
-    const m=mouthState%4;
-    if(m===0||m===2){
-      ctx.fillStyle='#7a1010';ctx.beginPath();ctx.ellipse(70,84,9,7,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#f07070';ctx.beginPath();ctx.ellipse(70,83,6,4,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#fff';ctx.fillRect(64,80,5,4);ctx.fillRect(71,80,5,4);
+    const m=mouthState%6;
+    if(m<2){
+      // Boca abierta ovalada
+      ctx.fillStyle='#6a0808';
+      ctx.beginPath();ctx.ellipse(cx,eyeY+28,11,9,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#d05050';
+      ctx.beginPath();ctx.ellipse(cx,eyeY+27,7,5,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.fillRect(cx-8,eyeY+21,7,5);ctx.fillRect(cx+1,eyeY+21,7,5);
+    } else if(m<4){
+      // Boca semicerrada
+      ctx.beginPath();ctx.arc(cx,eyeY+24,10,0.2,Math.PI-0.2);ctx.stroke();
+      // Rubor mejillas
+      ctx.fillStyle='rgba(255,100,100,0.28)';
+      ctx.beginPath();ctx.ellipse(cx-26,eyeY+12,11,6,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(cx+26,eyeY+12,11,6,0,0,Math.PI*2);ctx.fill();
     } else {
-      ctx.beginPath();ctx.arc(70,80,9,0.15,Math.PI-0.15);ctx.stroke();
-      ctx.fillStyle='rgba(255,90,90,0.22)';
-      ctx.beginPath();ctx.ellipse(42,74,9,5,0,0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.ellipse(98,74,9,5,0,0,Math.PI*2);ctx.fill();
+      // Sonrisa amplia
+      ctx.beginPath();ctx.arc(cx,eyeY+22,10,0.1,Math.PI-0.1);ctx.stroke();
     }
   } else {
-    ctx.beginPath();ctx.arc(70,81,7,0.18,Math.PI-0.18);ctx.stroke();
-    ctx.fillStyle='rgba(255,100,100,0.16)';
-    ctx.beginPath();ctx.ellipse(42,74,9,5,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(98,74,9,5,0,0,Math.PI*2);ctx.fill();
+    // Sonrisa tranquila
+    ctx.beginPath();ctx.arc(cx,eyeY+24,8,0.2,Math.PI-0.2);ctx.stroke();
+    // Rubor suave
+    ctx.fillStyle='rgba(255,120,120,0.14)';
+    ctx.beginPath();ctx.ellipse(cx-26,eyeY+12,10,5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+26,eyeY+12,10,5,0,0,Math.PI*2);ctx.fill();
   }
-  ctx.strokeStyle='#c8f03d';ctx.lineWidth=3;
-  ctx.beginPath();ctx.arc(70,32,34,Math.PI+0.38,-0.38);ctx.stroke();
-  ctx.fillStyle='#c8f03d';ctx.beginPath();ctx.arc(70,10,5.5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.65)';ctx.beginPath();ctx.arc(68,8,2,0,Math.PI*2);ctx.fill();
+
+  // ── ANTENA ──
+  const antY=headY-2;
+  ctx.strokeStyle='#c8f03d';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.arc(cx,headY+2,46,Math.PI+0.35,-0.35);ctx.stroke();
   ctx.strokeStyle='#c8f03d';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(70,14);ctx.lineTo(70,5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,antY-2);ctx.lineTo(cx,antY-18);ctx.stroke();
+  // Bola antena
   if(isTalking){
-    ctx.fillStyle=`rgba(200,240,61,${0.25+0.65*Math.abs(Math.sin(charFrame*0.25))})`;
-    ctx.beginPath();ctx.arc(70,5,9,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#c8f03d';ctx.beginPath();ctx.arc(70,5,5,0,Math.PI*2);ctx.fill();
+    const glow=ctx.createRadialGradient(cx,antY-20,1,cx,antY-20,12);
+    glow.addColorStop(0,`rgba(200,240,61,${0.8*eyeGlow})`);
+    glow.addColorStop(1,'rgba(200,240,61,0)');
+    ctx.fillStyle=glow;
+    ctx.beginPath();ctx.arc(cx,antY-20,12,0,Math.PI*2);ctx.fill();
   }
+  ctx.fillStyle='#c8f03d';
+  ctx.beginPath();ctx.arc(cx,antY-20,6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.7)';
+  ctx.beginPath();ctx.arc(cx-2,antY-22,2.2,0,Math.PI*2);ctx.fill();
 }
 
 // ─── AR CON CÁMARA ───────────────────────────────────────────────────
@@ -563,19 +693,36 @@ function activarAR() {
 
 // ─── VOZ ─────────────────────────────────────────────────────────────
 let utterance=null,currentDesc='',pendingSpeech=null,voicesReady=false;
+// Flag: ¿el usuario ya desbloqueó el audio con un gesto?
+let audioUnlocked = false;
+
+function unlockAndSpeak() {
+  const overlay = document.getElementById('tap-overlay');
+  if(overlay) overlay.style.display='none';
+  audioUnlocked = true;
+  if(pendingSpeech) { doSpeak(pendingSpeech); pendingSpeech=null; }
+}
 
 function doSpeak(text){
   if(!window.speechSynthesis)return;
   window.speechSynthesis.cancel();
   if(mouthInterval)clearInterval(mouthInterval);
   utterance=new SpeechSynthesisUtterance(text);
-  utterance.lang='es-CO';utterance.rate=0.90;utterance.pitch=1.05;
+  utterance.lang='es-CO';utterance.rate=0.90;utterance.pitch=1.1;
   const voices=window.speechSynthesis.getVoices();
   const esVoice=voices.find(v=>v.lang==='es-CO')||voices.find(v=>v.lang==='es-US')||voices.find(v=>v.lang.startsWith('es')&&v.name.toLowerCase().includes('google'))||voices.find(v=>v.lang.startsWith('es'));
   if(esVoice)utterance.voice=esVoice;
-  utterance.onstart=()=>{setTalkingAnim(true);mouthInterval=setInterval(()=>{mouthState++;},150);animateProgress(text.length*65);};
+  utterance.onstart=()=>{setTalkingAnim(true);mouthInterval=setInterval(()=>{mouthState++;},120);animateProgress(text.length*65);};
   utterance.onend=()=>{setTalkingAnim(false);if(mouthInterval){clearInterval(mouthInterval);mouthInterval=null;}document.getElementById('typing-cursor').style.display='none';document.getElementById('voice-progress').style.width='100%';};
-  utterance.onerror=(e)=>{setTalkingAnim(false);if(e.error==='not-allowed'||e.error==='interrupted'){document.getElementById('repeat-btn').style.animation='pulse 1s infinite';}};
+  utterance.onerror=(e)=>{
+    setTalkingAnim(false);
+    if(e.error==='not-allowed'){
+      // No hubo gesto: mostrar overlay para que el usuario toque
+      pendingSpeech=text;
+      const overlay=document.getElementById('tap-overlay');
+      if(overlay) overlay.style.display='flex';
+    }
+  };
   window.speechSynthesis.speak(utterance);
   typeText(text);
 }
